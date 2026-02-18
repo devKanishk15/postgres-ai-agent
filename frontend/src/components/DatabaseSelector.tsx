@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { fetchDatabases, type DatabaseItem } from "@/lib/api";
+import { fetchDatabases, fetchDatabaseJob, type DatabaseItem, type JobDetectionResult } from "@/lib/api";
 
 interface Props {
     value: string;
     onChange: (name: string) => void;
+    onJobDetected?: (result: JobDetectionResult | null) => void;
 }
 
-export default function DatabaseSelector({ value, onChange }: Props) {
+export default function DatabaseSelector({ value, onChange, onJobDetected }: Props) {
     const [databases, setDatabases] = useState<DatabaseItem[]>([]);
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
@@ -36,6 +37,20 @@ export default function DatabaseSelector({ value, onChange }: Props) {
     );
 
     const selected = databases.find((d) => d.name === value);
+
+    const handleSelect = (dbName: string) => {
+        onChange(dbName);
+        setOpen(false);
+        setSearch("");
+
+        // Auto-detect Prometheus job for the selected database
+        if (onJobDetected) {
+            onJobDetected(null); // reset while loading
+            fetchDatabaseJob(dbName)
+                .then((result) => onJobDetected(result))
+                .catch(() => onJobDetected(null));
+        }
+    };
 
     return (
         <div className="db-selector" ref={ref}>
@@ -106,11 +121,7 @@ export default function DatabaseSelector({ value, onChange }: Props) {
                                 key={db.name}
                                 className={`db-selector__item ${db.name === value ? "active" : ""
                                     }`}
-                                onClick={() => {
-                                    onChange(db.name);
-                                    setOpen(false);
-                                    setSearch("");
-                                }}
+                                onClick={() => handleSelect(db.name)}
                             >
                                 <span className="db-selector__item-dot" />
                                 <div className="db-selector__item-info">

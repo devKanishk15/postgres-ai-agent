@@ -5,16 +5,33 @@ import { v4 as uuidv4 } from "uuid";
 import ChatWindow from "@/components/ChatWindow";
 import DatabaseSelector from "@/components/DatabaseSelector";
 import type { ChatMessage } from "@/components/ChatWindow";
-import type { HistoryMessage, ToolCallInfo } from "@/lib/api";
+import type { HistoryMessage, ToolCallInfo, JobDetectionResult } from "@/lib/api";
 import { sendMessage } from "@/lib/api";
 
 export default function Home() {
   const [database, setDatabase] = useState("");
+  const [detectedJob, setDetectedJob] = useState<JobDetectionResult | null>(null);
+  const [jobLoading, setJobLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId] = useState(() => uuidv4());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleJobDetected = useCallback((result: JobDetectionResult | null) => {
+    if (result === null) {
+      setJobLoading(true);
+      setDetectedJob(null);
+    } else {
+      setJobLoading(false);
+      setDetectedJob(result);
+    }
+  }, []);
+
+  const handleDatabaseChange = useCallback((name: string) => {
+    setDatabase(name);
+    setDetectedJob(null);
+  }, []);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -94,7 +111,11 @@ export default function Home() {
       {/* Header */}
       <header className="header">
         <div className="header__left">
-          <DatabaseSelector value={database} onChange={setDatabase} />
+          <DatabaseSelector
+            value={database}
+            onChange={handleDatabaseChange}
+            onJobDetected={handleJobDetected}
+          />
         </div>
         <div className="header__center">
           <h1 className="header__title">PostgreSQL Agent</h1>
@@ -105,6 +126,20 @@ export default function Home() {
             <span className="header__status-text">
               {database ? database : "No DB selected"}
             </span>
+            {database && (
+              <span className="header__job-badge">
+                {jobLoading ? (
+                  <span className="header__job-loading">detecting…</span>
+                ) : detectedJob?.job ? (
+                  <span
+                    className="header__job-tag"
+                    title={`Prometheus job: ${detectedJob.job}${detectedJob.instance ? ` · instance: ${detectedJob.instance}` : ""}${detectedJob.source ? ` · source: ${detectedJob.source}` : ""}`}
+                  >
+                    job: {detectedJob.job}
+                  </span>
+                ) : null}
+              </span>
+            )}
           </div>
         </div>
       </header>

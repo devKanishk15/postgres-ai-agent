@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 import yaml
 from pydantic import BaseModel
@@ -57,6 +57,7 @@ def get_settings() -> Settings:
 class DatabaseEntry(BaseModel):
     name: str
     label: str
+    job: Optional[str] = None
 
 
 def load_databases() -> List[DatabaseEntry]:

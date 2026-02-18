@@ -2,9 +2,10 @@
 FastAPI backend for the PostgreSQL Observability Agent.
 
 Endpoints:
-  POST /chat       — Send a message to the agent
-  GET  /databases  — List available databases
-  GET  /health     — Health check
+  POST /chat                  — Send a message to the agent
+  GET  /databases             — List available databases (with job field)
+  GET  /databases/{name}/job  — Auto-detect Prometheus job for a database
+  GET  /health                — Health check
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -76,14 +78,76 @@ class ChatResponse(BaseModel):
 class DatabaseItem(BaseModel):
     name: str
     label: str
+    job: Optional[str] = None
 
 
 class DatabasesResponse(BaseModel):
     databases: List[DatabaseItem]
 
 
+class JobDetectionResponse(BaseModel):
+    database: str
+    job: Optional[str]
+    instance: Optional[str]
+    source: str  # "config" | "prometheus" | "not_found"
+
+
 class HealthResponse(BaseModel):
     status: str
+
+
+# ---------------------------------------------------------------------------
+# Prometheus Job Detection Helper
+# ---------------------------------------------------------------------------
+
+async def detect_job_from_prometheus(db_name: str) -> Dict[str, Optional[str]]:
+    """
+    Query Prometheus pg_up metric and attempt to find the job label
+    associated with the given database name.
+
+    Strategy:
+    1. Query pg_up to get all active instances with their labels.
+    2. Try to match the instance label against the db_name (substring match).
+    3. If no match, return all unique jobs found (first one wins as best-effort).
+
+    Returns: {"job": str | None, "instance": str | None}
+    """
+    settings = get_settings()
+    prometheus_url = settings.prometheus_url
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{prometheus_url}/api/v1/query",
+                params={"query": "pg_up"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        logger.warning(f"Failed to query Prometheus for pg_up: {e}")
+        return {"job": None, "instance": None}
+
+    results = data.get("data", {}).get("result", [])
+    if not results:
+        logger.info("pg_up returned no results from Prometheus")
+        return {"job": None, "instance": None}
+
+    # Try exact / substring match on instance label vs db_name
+    for item in results:
+        metric = item.get("metric", {})
+        instance = metric.get("instance", "")
+        job = metric.get("job", "")
+        # Match if the db name appears in the instance string (hostname part)
+        if db_name.lower() in instance.lower():
+            logger.info(f"Matched db '{db_name}' → job='{job}', instance='{instance}' (name match)")
+            return {"job": job or None, "instance": instance or None}
+
+    # No name match — return the first unique job as a best-effort fallback
+    first = results[0].get("metric", {})
+    job = first.get("job") or None
+    instance = first.get("instance") or None
+    logger.info(f"No name match for '{db_name}'; returning first pg_up job='{job}', instance='{instance}'")
+    return {"job": job, "instance": instance}
 
 
 # ---------------------------------------------------------------------------
@@ -98,10 +162,58 @@ async def health_check():
 
 @app.get("/databases", response_model=DatabasesResponse)
 async def list_databases():
-    """Return all available databases from config."""
+    """Return all available databases from config, including their configured job."""
     dbs = get_databases()
     return DatabasesResponse(
-        databases=[DatabaseItem(name=db.name, label=db.label) for db in dbs]
+        databases=[
+            DatabaseItem(name=db.name, label=db.label, job=db.job)
+            for db in dbs
+        ]
+    )
+
+
+@app.get("/databases/{name}/job", response_model=JobDetectionResponse)
+async def get_database_job(name: str):
+    """
+    Return the Prometheus job name for a given database.
+
+    Resolution order:
+    1. If the database entry in databases.yaml has a `job` field set → return it directly.
+    2. Otherwise, query Prometheus pg_up and auto-detect the job from metric labels.
+    """
+    # Validate database exists
+    db_map = {db.name: db for db in get_databases()}
+    if name not in db_map:
+        raise HTTPException(status_code=404, detail=f"Unknown database: {name}")
+
+    db_entry = db_map[name]
+
+    # 1. Config-defined job takes priority
+    if db_entry.job:
+        logger.info(f"Job for '{name}' resolved from config: {db_entry.job}")
+        return JobDetectionResponse(
+            database=name,
+            job=db_entry.job,
+            instance=None,
+            source="config",
+        )
+
+    # 2. Auto-detect from Prometheus pg_up
+    detected = await detect_job_from_prometheus(name)
+    if detected["job"]:
+        return JobDetectionResponse(
+            database=name,
+            job=detected["job"],
+            instance=detected["instance"],
+            source="prometheus",
+        )
+
+    # 3. Nothing found
+    return JobDetectionResponse(
+        database=name,
+        job=None,
+        instance=None,
+        source="not_found",
     )
 
 

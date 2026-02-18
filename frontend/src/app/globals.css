@@ -158,6 +158,57 @@ a {
   white-space: nowrap;
 }
 
+.header__job-badge {
+  display: flex;
+  align-items: center;
+}
+
+.header__job-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(124, 139, 255, 0.2);
+  color: var(--text-accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: default;
+  transition: background var(--transition), border-color var(--transition);
+  animation: jobBadgeIn 0.25s ease-out;
+}
+
+.header__job-tag:hover {
+  background: rgba(124, 139, 255, 0.18);
+  border-color: rgba(124, 139, 255, 0.35);
+}
+
+@keyframes jobBadgeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+}
+
+.header__job-loading {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-style: italic;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 /* ================================================================
    Database Selector
    ================================================================ */

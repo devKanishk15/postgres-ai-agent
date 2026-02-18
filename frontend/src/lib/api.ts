@@ -3,6 +3,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface DatabaseItem {
     name: string;
     label: string;
+    job?: string | null;
 }
 
 export interface ToolCallInfo {
@@ -22,11 +23,24 @@ export interface HistoryMessage {
     content: string;
 }
 
+export interface JobDetectionResult {
+    database: string;
+    job: string | null;
+    instance: string | null;
+    source: "config" | "prometheus" | "not_found";
+}
+
 export async function fetchDatabases(): Promise<DatabaseItem[]> {
     const res = await fetch(`${API_BASE}/databases`);
     if (!res.ok) throw new Error("Failed to fetch databases");
     const data = await res.json();
     return data.databases;
+}
+
+export async function fetchDatabaseJob(name: string): Promise<JobDetectionResult> {
+    const res = await fetch(`${API_BASE}/databases/${encodeURIComponent(name)}/job`);
+    if (!res.ok) throw new Error(`Failed to fetch job for database: ${name}`);
+    return res.json();
 }
 
 export async function sendMessage(
