@@ -1,0 +1,101 @@
+databases:
+  - name: prod-db-01
+    label: "Production DB 01"
+  - name: prod-db-02
+    label: "Production DB 02"
+  - name: prod-db-03
+    label: "Production DB 03"
+  - name: prod-db-04
+    label: "Production DB 04"
+  - name: prod-db-05
+    label: "Production DB 05"
+  - name: staging-db-01
+    label: "Staging DB 01"
+  - name: staging-db-02
+    label: "Staging DB 02"
+  - name: staging-db-03
+    label: "Staging DB 03"
+  - name: staging-db-04
+    label: "Staging DB 04"
+  - name: staging-db-05
+    label: "Staging DB 05"
+  - name: dev-db-01
+    label: "Development DB 01"
+  - name: dev-db-02
+    label: "Development DB 02"
+  - name: dev-db-03
+    label: "Development DB 03"
+  - name: dev-db-04
+    label: "Development DB 04"
+  - name: dev-db-05
+    label: "Development DB 05"
+  - name: analytics-db-01
+    label: "Analytics DB 01"
+  - name: analytics-db-02
+    label: "Analytics DB 02"
+  - name: analytics-db-03
+    label: "Analytics DB 03"
+  - name: reporting-db-01
+    label: "Reporting DB 01"
+  - name: reporting-db-02
+    label: "Reporting DB 02"
+  - name: finance-db-01
+    label: "Finance DB 01"
+  - name: finance-db-02
+    label: "Finance DB 02"
+  - name: hr-db-01
+    label: "HR DB 01"
+  - name: hr-db-02
+    label: "HR DB 02"
+  - name: inventory-db-01
+    label: "Inventory DB 01"
+  - name: inventory-db-02
+    label: "Inventory DB 02"
+  - name: orders-db-01
+    label: "Orders DB 01"
+  - name: orders-db-02
+    label: "Orders DB 02"
+  - name: payments-db-01
+    label: "Payments DB 01"
+  - name: payments-db-02
+    label: "Payments DB 02"
+  - name: auth-db-01
+    label: "Auth DB 01"
+  - name: auth-db-02
+    label: "Auth DB 02"
+  - name: notifications-db-01
+    label: "Notifications DB 01"
+  - name: notifications-db-02
+    label: "Notifications DB 02"
+  - name: search-db-01
+    label: "Search DB 01"
+  - name: search-db-02
+    label: "Search DB 02"
+  - name: logging-db-01
+    label: "Logging DB 01"
+  - name: logging-db-02
+    label: "Logging DB 02"
+  - name: cache-db-01
+    label: "Cache DB 01"
+  - name: cache-db-02
+    label: "Cache DB 02"
+  - name: geo-db-01
+    label: "Geo DB 01"
+  - name: geo-db-02
+    label: "Geo DB 02"
+  - name: media-db-01
+    label: "Media DB 01"
+  - name: media-db-02
+    label: "Media DB 02"
+  - name: chat-db-01
+    label: "Chat DB 01"
+  - name: chat-db-02
+    label: "Chat DB 02"
+  - name: ml-db-01
+    label: "ML Pipeline DB 01"
+  - name: ml-db-02
+    label: "ML Pipeline DB 02"
+  - name: crm-db-01
+    label: "CRM DB 01"
+  - name: crm-db-02
+    label: "CRM DB 02"

@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  # ── Frontend ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+
+  # ── Backend (FastAPI + LangGraph Agent) ─────────────────────
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Needed to spawn MCP containers
+    depends_on:
+      - mcp-prometheus
+      - mcp-victoriametrics
+
+  # ── Prometheus MCP Server ──────────────────────────────────
+  mcp-prometheus:
+    image: ghcr.io/pab1it0/prometheus-mcp-server:latest
+    environment:
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://host.docker.internal:9090}
+    stdin_open: true
+    tty: true
+
+  # ── VictoriaMetrics MCP Server ─────────────────────────────
+  mcp-victoriametrics:
+    image: ghcr.io/victoriametrics-community/mcp-victoriametrics
+    environment:
+      - VM_INSTANCE_ENTRYPOINT=${VICTORIA_METRICS_URL:-http://host.docker.internal:8428}
+      - VM_INSTANCE_TYPE=single
+      - MCP_SERVER_MODE=stdio
+    stdin_open: true
+    tty: true
