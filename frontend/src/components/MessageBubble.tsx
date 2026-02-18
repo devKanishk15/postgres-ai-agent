@@ -8,6 +8,27 @@ import type { ToolCallInfo } from "@/lib/api";
 import ToolCallTrace from "./ToolCallTrace";
 import type { CSSProperties } from "react";
 
+/**
+ * Extremely aggressive stripper for any raw tool-call or thinking XML that leaks into the text.
+ * It targets any tags starting with <execute_, <function_, <anthropic_, <invoke, <parameter, etc.
+ */
+function sanitizeContent(text: string): string {
+    if (!text) return "";
+
+    return text
+        // 1. Strip all XML blocks: <any_tag>...</any_tag>
+        // We look for tags that are at least 3 chars long to avoid stripping small markdown bits
+        .replace(/<([a-z0-9_-]{3,})[^>]*>[\s\S]*?<\/\1>/gi, "")
+        // 2. Strip any remaining lone tags: <any_tag> or </any_tag>
+        .replace(/<\/?[a-z0-9_-]{3,}[^>]*>/gi, "")
+        // 3. Cleanup whitespace
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+}
+
+
+
+
 interface Props {
     role: "user" | "assistant";
     content: string;
@@ -15,6 +36,8 @@ interface Props {
 }
 
 export default function MessageBubble({ role, content, toolCalls }: Props) {
+    const displayContent = role === "assistant" ? sanitizeContent(content) : content;
+
     return (
         <div className={`message message--${role}`}>
             <div className="message__avatar">
@@ -70,7 +93,7 @@ export default function MessageBubble({ role, content, toolCalls }: Props) {
                                 },
                             }}
                         >
-                            {content}
+                            {displayContent}
                         </ReactMarkdown>
                     ) : (
                         <p>{content}</p>

@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { fetchDatabases, fetchDatabaseJob, type DatabaseItem, type JobDetectionResult } from "@/lib/api";
+import { fetchDatabases, type DatabaseItem } from "@/lib/api";
 
 interface Props {
     value: string;
     onChange: (name: string) => void;
-    onJobDetected?: (result: JobDetectionResult | null) => void;
 }
 
-export default function DatabaseSelector({ value, onChange, onJobDetected }: Props) {
+export default function DatabaseSelector({ value, onChange }: Props) {
     const [databases, setDatabases] = useState<DatabaseItem[]>([]);
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
@@ -32,7 +31,6 @@ export default function DatabaseSelector({ value, onChange, onJobDetected }: Pro
 
     const filtered = databases.filter(
         (db) =>
-            db.label.toLowerCase().includes(search.toLowerCase()) ||
             db.name.toLowerCase().includes(search.toLowerCase())
     );
 
@@ -42,14 +40,6 @@ export default function DatabaseSelector({ value, onChange, onJobDetected }: Pro
         onChange(dbName);
         setOpen(false);
         setSearch("");
-
-        // Auto-detect Prometheus job for the selected database
-        if (onJobDetected) {
-            onJobDetected(null); // reset while loading
-            fetchDatabaseJob(dbName)
-                .then((result) => onJobDetected(result))
-                .catch(() => onJobDetected(null));
-        }
     };
 
     return (
@@ -73,7 +63,7 @@ export default function DatabaseSelector({ value, onChange, onJobDetected }: Pro
                     <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                 </svg>
                 <span className="db-selector__label">
-                    {selected ? selected.label : "Select Database"}
+                    {selected ? selected.name : "Select Database"}
                 </span>
                 <svg
                     className={`db-selector__arrow ${open ? "open" : ""}`}
@@ -125,8 +115,7 @@ export default function DatabaseSelector({ value, onChange, onJobDetected }: Pro
                             >
                                 <span className="db-selector__item-dot" />
                                 <div className="db-selector__item-info">
-                                    <span className="db-selector__item-label">{db.label}</span>
-                                    <span className="db-selector__item-name">{db.name}</span>
+                                    <span className="db-selector__item-label">{db.name}</span>
                                 </div>
                                 {db.name === value && (
                                     <svg
