@@ -96,12 +96,12 @@ npm install
 npm run dev
 ```
 
-The frontend runs at **http://localhost:5173**.
+The frontend runs at **http://localhost:3000**.
 
 ### 4. Docker Compose (Full Stack)
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 - Frontend: **http://localhost:3000**
@@ -200,26 +200,31 @@ Here are some questions you can ask the agent:
 postgres-ai-agent/
 ├── frontend/
 │   ├── src/
+│   │   ├── app/
+│   │   │   ├── globals.css          # Global styles & premium theme
+│   │   │   ├── layout.tsx           # Root layout
+│   │   │   └── page.tsx             # Main chat interface & logic
 │   │   ├── components/
-│   │   │   ├── ChatWindow.tsx       # Message list + empty state
-│   │   │   ├── MessageBubble.tsx    # User/assistant bubbles + Markdown
+│   │   │   ├── ChatWindow.tsx       # Message list & empty state
+│   │   │   ├── MessageBubble.tsx    # User/assistant bubbles & Markdown
 │   │   │   ├── DatabaseSelector.tsx # Searchable database dropdown
 │   │   │   └── ToolCallTrace.tsx    # Collapsible tool call panel
-│   │   ├── App.tsx                  # Main layout
-│   │   ├── api.ts                   # REST client
-│   │   └── index.css                # Premium dark theme
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   └── package.json
+│   │   ├── lib/
+│   │   │   └── api.ts               # REST client & types
+│   ├── Dockerfile                   # Multi-stage production build
+│   ├── package.json
+│   ├── next.config.ts
+│   └── tsconfig.json
 ├── backend/
 │   ├── main.py                      # FastAPI server
 │   ├── agent.py                     # LangGraph ReAct agent + MCP clients
 │   ├── config.py                    # Settings & database config loader
-│   ├── databases.yaml               # Database list (50 entries)
+│   ├── databases.yaml               # Configurable database list
 │   ├── requirements.txt
-│   └── Dockerfile
-├── docker-compose.yml
+│   └── Dockerfile                   # Python-based Docker setup
+├── docker-compose.yml               # Orchestrates agent + MCP servers
 ├── .env.example
+├── .gitignore
 └── README.md
 ```
 

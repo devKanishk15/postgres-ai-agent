@@ -191,6 +191,7 @@ a {
     opacity: 0;
     transform: scale(0.85) translateX(4px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateX(0);
@@ -205,8 +206,15 @@ a {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 /* ================================================================
@@ -283,6 +291,7 @@ a {
     opacity: 0;
     transform: translateY(-4px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -452,11 +461,13 @@ a {
 }
 
 @keyframes glowPulse {
+
   0%,
   100% {
     opacity: 0.3;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.5;
     transform: scale(1.1);
@@ -545,13 +556,14 @@ a {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.message + .message {
+.message+.message {
   border-top: 1px solid var(--border);
 }
 
@@ -641,9 +653,11 @@ a {
 .message__content h1 {
   font-size: 1.2rem;
 }
+
 .message__content h2 {
   font-size: 1.1rem;
 }
+
 .message__content h3 {
   font-size: 1rem;
 }
@@ -724,12 +738,14 @@ a {
 }
 
 @keyframes thinking {
+
   0%,
   60%,
   100% {
     opacity: 0.3;
     transform: scale(0.8);
   }
+
   30% {
     opacity: 1;
     transform: scale(1);
@@ -737,36 +753,40 @@ a {
 }
 
 /* ================================================================
-   Tool Call Trace
+   Tool Call Trace — outer wrapper
    ================================================================ */
 
 .tool-trace {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .tool-trace__toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 20px;
   background: var(--bg-tertiary);
   color: var(--text-muted);
   font-family: var(--font-family);
-  font-size: 0.75rem;
+  font-size: 0.73rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--transition);
+  letter-spacing: 0.01em;
 }
 
 .tool-trace__toggle:hover {
   border-color: var(--border-hover);
   color: var(--text-secondary);
+  background: var(--bg-hover);
 }
 
 .tool-trace__arrow {
   transition: transform var(--transition);
   display: flex;
+  margin-left: 2px;
 }
 
 .tool-trace__arrow.open {
@@ -776,55 +796,116 @@ a {
 .tool-trace__list {
   margin-top: 8px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   animation: dropdownIn 0.15s ease-out;
 }
 
-.tool-trace__item {
-  padding: 12px;
+/* ================================================================
+   Tool Call Item — per-tool accordion
+   ================================================================ */
+
+.tc-item {
   border-bottom: 1px solid var(--border);
 }
 
-.tool-trace__item:last-child {
+.tc-item:last-child {
   border-bottom: none;
 }
 
-.tool-trace__name {
-  font-size: 0.82rem;
-  font-weight: 600;
+.tc-item__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition);
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: 0.8rem;
+}
+
+.tc-item__header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tc-item__header.open {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tc-item__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-soft);
   color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.tc-item__name {
+  flex: 1;
   font-family: var(--font-mono);
-  margin-bottom: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tool-trace__section {
-  margin-top: 6px;
+.tc-item__chevron {
+  transition: transform var(--transition);
+  display: flex;
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
-.tool-trace__label {
+.tc-item__chevron.open {
+  transform: rotate(180deg);
+}
+
+.tc-item__body {
+  padding: 0 12px 12px 12px;
+  animation: dropdownIn 0.12s ease-out;
+}
+
+.tc-item__section {
+  margin-top: 8px;
+}
+
+.tc-item__label {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.67rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--text-muted);
   margin-bottom: 4px;
 }
 
-.tool-trace__code {
+.tc-item__code {
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 10px;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   color: var(--text-secondary);
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
+  line-height: 1.5;
 }
 
 /* ================================================================

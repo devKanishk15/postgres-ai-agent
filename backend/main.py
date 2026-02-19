@@ -77,7 +77,6 @@ class ChatResponse(BaseModel):
 
 class DatabaseItem(BaseModel):
     name: str
-    label: str
     job: Optional[str] = None
 
 
@@ -166,7 +165,7 @@ async def list_databases():
     dbs = get_databases()
     return DatabasesResponse(
         databases=[
-            DatabaseItem(name=db.name, label=db.label, job=db.job)
+            DatabaseItem(name=db.name, job=db.job)
             for db in dbs
         ]
     )

@@ -56,7 +56,6 @@ def get_settings() -> Settings:
 
 class DatabaseEntry(BaseModel):
     name: str
-    label: str
     job: Optional[str] = None
 
 
