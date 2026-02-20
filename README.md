@@ -1,6 +1,6 @@
 # PostgreSQL Observability AI Agent
 
-An AI-powered PostgreSQL observability agent that uses **Prometheus** metrics and **VictoriaMetrics** data through **MCP servers**, reasons with **LangGraph**, and provides a ChatGPT-style interface for database monitoring.
+An AI-powered PostgreSQL observability agent that uses **Prometheus** metrics and **VictoriaLogs** log data through **MCP servers**, reasons with **LangGraph**, and provides a ChatGPT-style interface for database monitoring.
 
 ---
 
@@ -33,7 +33,7 @@ An AI-powered PostgreSQL observability agent that uses **Prometheus** metrics an
 │          ┌──────────────┼──────────────┐                        │
 │          ▼              ▼              │                        │
 │   ┌─────────────┐ ┌──────────────┐    │      ┌──────────────┐  │
-│   │ Prometheus  │ │ VictoriaM.   │    └─────▶│   Langfuse   │  │
+│   │ Prometheus  │ │ VictoriaLogs │    └─────▶│   Langfuse   │  │
 │   │ MCP Server  │ │ MCP Server   │           │  (Tracing)   │  │
 │   │ (stdio)     │ │ (stdio)      │           └──────────────┘  │
 │   └──────┬──────┘ └──────┬───────┘                              │
@@ -41,8 +41,8 @@ An AI-powered PostgreSQL observability agent that uses **Prometheus** metrics an
 └──────────┼───────────────┼──────────────────────────────────────┘
            ▼               ▼
      ┌───────────┐   ┌──────────────┐
-     │Prometheus │   │VictoriaMetrics│
-     │  Server   │   │   Instance    │
+     │Prometheus │   │ VictoriaLogs │
+     │  Server   │   │   Instance   │
      └───────────┘   └──────────────┘
 ```
 
@@ -54,7 +54,7 @@ An AI-powered PostgreSQL observability agent that uses **Prometheus** metrics an
 - **Node.js 20+**
 - **Docker** (for MCP server containers)
 - A running **Prometheus** instance
-- A running **VictoriaMetrics** instance
+- A running **VictoriaLogs** instance
 - An **OpenAI** or **Anthropic** API key
 
 ---
@@ -116,7 +116,7 @@ docker compose up --build
 | Variable               | Description                        | Default                      |
 | ---------------------- | ---------------------------------- | ---------------------------- |
 | `PROMETHEUS_URL`       | Prometheus server URL              | `http://localhost:9090`      |
-| `VICTORIA_METRICS_URL` | VictoriaMetrics instance URL       | `http://localhost:8428`      |
+| `VICTORIA_LOGS_URL`    | VictoriaLogs instance URL          | `http://localhost:9428`      |
 | `LLM_PROVIDER`         | `openai` or `anthropic`            | `openai`                     |
 | `LLM_MODEL`            | Model name                         | `gpt-4o`                     |
 | `OPENAI_API_KEY`       | OpenAI API key                     | —                            |
@@ -146,7 +146,7 @@ This project uses **open-source MCP servers** — no custom MCP code is needed:
 | Server            | Source                                                                   | Docker Image                                    |
 | ----------------- | ------------------------------------------------------------------------ | ----------------------------------------------- |
 | Prometheus MCP    | [pab1it0/prometheus-mcp-server](https://github.com/pab1it0/prometheus-mcp-server) | `ghcr.io/pab1it0/prometheus-mcp-server:latest`  |
-| VictoriaMetrics MCP | [VictoriaMetrics-Community/mcp-victoriametrics](https://github.com/VictoriaMetrics-Community/mcp-victoriametrics) | `victoriametrics/mcp-victoriametrics:latest` |
+| VictoriaLogs MCP  | [VictoriaMetrics-Community/mcp-victorialogs](https://github.com/VictoriaMetrics-Community/mcp-victorialogs) | `ghcr.io/victoriametrics-community/mcp-victorialogs` |
 
 The agent connects to these servers via **stdio transport** at startup.
 
