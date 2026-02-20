@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="PostgreSQL Observability Agent",
-    description="AI-powered PostgreSQL monitoring via Prometheus & VictoriaMetrics MCP servers",
+    description="AI-powered PostgreSQL monitoring via Prometheus & VictoriaLogs MCP servers",
     version="1.0.0",
 )
 

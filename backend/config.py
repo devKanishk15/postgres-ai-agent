@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     """Application settings sourced from environment variables."""
 
     prometheus_url: str = "http://localhost:9090"
-    victoria_metrics_url: str = "http://localhost:8428"
+    victoria_logs_url: str = "http://localhost:9428"
 
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

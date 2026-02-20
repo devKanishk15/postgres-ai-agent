@@ -1,7 +1,7 @@
 """
 LangGraph ReAct Agent for PostgreSQL Observability.
 
-Integrates with open-source MCP servers (Prometheus + VictoriaMetrics)
+Integrates with open-source MCP servers (Prometheus + VictoriaLogs)
 via stdio transport, using LangGraph for agentic reasoning and Langfuse
 for LLM tracing.
 """
@@ -50,13 +50,17 @@ class AgentState(TypedDict):
 # System Prompt
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT_TEMPLATE = """You are a PostgreSQL observability expert. You have access to Prometheus metrics and VictoriaMetrics data for the PostgreSQL database named `{database}`.
+SYSTEM_PROMPT_TEMPLATE = """You are a PostgreSQL observability expert. You have access to Prometheus metrics and VictoriaLogs log data for the PostgreSQL database named `{database}`.
 
 You must NEVER attempt to connect directly to the database. All data must be fetched exclusively through your available tools.
 
+You have two categories of tools:
+1. **Prometheus tools** — for querying PostgreSQL metrics (PromQL). Use these for numeric time-series data like connection counts, replication lag, cache hit ratios, etc.
+2. **VictoriaLogs tools** — for querying PostgreSQL logs (LogsQL). Use these for log analysis, error investigation, query patterns, and event correlation.
+
 When diagnosing issues, always correlate metrics with logs. Provide clear, structured, actionable insights. When you find anomalies, explain what they mean and suggest remediation steps.
 
-Key PostgreSQL metrics you can investigate:
+Key PostgreSQL metrics you can investigate via Prometheus:
 - Connections: pg_stat_activity, connection counts, connection pool usage
 - Replication: replication lag, WAL generation rate
 - Performance: cache hit ratio, transaction rate, query execution times
@@ -64,12 +68,20 @@ Key PostgreSQL metrics you can investigate:
 - Storage: table/index bloat, disk usage, tablespace sizes
 - Autovacuum: vacuum activity, dead tuples, table stats
 
+Key PostgreSQL logs you can investigate via VictoriaLogs:
+- Error logs: FATAL, ERROR, PANIC messages
+- Slow query logs: queries exceeding duration thresholds
+- Connection events: connection attempts, authentication failures
+- Checkpoint and WAL activity
+- Autovacuum and maintenance events
+- Replication-related log entries
+
 When using Prometheus tools, construct PromQL queries filtering by the database instance.
-When using VictoriaMetrics tools, construct MetricsQL queries for the specific database.
+When using VictoriaLogs tools, use LogsQL queries to search and analyze log entries.
 
 Always provide:
 1. A clear summary of findings
-2. Relevant metric values with context
+2. Relevant metric values and log evidence with context
 3. Actionable recommendations when issues are found
 """
 
@@ -126,30 +138,34 @@ class MCPClientManager:
         except Exception as e:
             logger.warning(f"⚠️  Prometheus MCP server failed to start: {e}")
 
-        # --- VictoriaMetrics MCP Server ---
+        # --- VictoriaLogs MCP Server ---
         try:
-            vm_params = StdioServerParameters(
-                command="mcp-victoriametrics",
-                args=[],
+            vl_params = StdioServerParameters(
+                command="docker",
+                args=[
+                    "run", "-i", "--rm",
+                    "-e", "VL_INSTANCE_ENTRYPOINT",
+                    "-e", "MCP_SERVER_MODE",
+                    "ghcr.io/victoriametrics-community/mcp-victorialogs",
+                ],
                 env={
                     **os.environ,
-                    "VM_INSTANCE_ENTRYPOINT": settings.victoria_metrics_url,
-                    "VM_INSTANCE_TYPE": "single",
+                    "VL_INSTANCE_ENTRYPOINT": settings.victoria_logs_url,
                     "MCP_SERVER_MODE": "stdio",
                 },
             )
-            vm_transport = await self._exit_stack.enter_async_context(
-                stdio_client(vm_params)
+            vl_transport = await self._exit_stack.enter_async_context(
+                stdio_client(vl_params)
             )
-            vm_read, vm_write = vm_transport
-            vm_session = await self._exit_stack.enter_async_context(
-                ClientSession(vm_read, vm_write)
+            vl_read, vl_write = vl_transport
+            vl_session = await self._exit_stack.enter_async_context(
+                ClientSession(vl_read, vl_write)
             )
-            await vm_session.initialize()
-            self._sessions["victoriametrics"] = vm_session
-            logger.info("✅ VictoriaMetrics MCP server connected")
+            await vl_session.initialize()
+            self._sessions["victorialogs"] = vl_session
+            logger.info("✅ VictoriaLogs MCP server connected")
         except Exception as e:
-            logger.warning(f"⚠️  VictoriaMetrics MCP server failed to start: {e}")
+            logger.warning(f"⚠️  VictoriaLogs MCP server failed to start: {e}")
 
         # Discover and register tools from all connected MCP servers
         await self._discover_tools()
