@@ -77,6 +77,7 @@ Key PostgreSQL logs you can investigate via VictoriaLogs:
 - Replication-related log entries
 
 When using Prometheus tools, construct PromQL queries filtering by the database instance.
+For the `list_metrics` tool, do NOT use `match[]` as an argument. Instead, use the `filter_pattern` string argument to filter metrics.
 When using VictoriaLogs tools, use LogsQL queries to search and analyze log entries.
 
 Always provide:
@@ -196,7 +197,11 @@ class MCPClientManager:
         async def _invoke_tool(**kwargs) -> str:
             """Call the MCP tool and return the result."""
             try:
-                result = await session.call_tool(mcp_tool.name, arguments=kwargs)
+                # Only forward arguments that the tool schema declares;
+                # drop any hallucinated / unexpected keys from the LLM.
+                schema_props = input_schema.get("properties", {})
+                filtered_args = {k: v for k, v in kwargs.items() if k in schema_props}
+                result = await session.call_tool(mcp_tool.name, arguments=filtered_args)
                 # Extract text content from the result
                 if result.content:
                     parts = []
