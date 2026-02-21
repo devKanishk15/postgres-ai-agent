@@ -18,12 +18,12 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - agent.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # Needed to spawn MCP containers
     depends_on:
       - mcp-prometheus
-      - mcp-victoriametrics
+      - mcp-victorialogs
 
   # ── Prometheus MCP Server ──────────────────────────────────
   mcp-prometheus:
@@ -33,12 +33,11 @@ services:
     stdin_open: true
     tty: true
 
-  # ── VictoriaMetrics MCP Server ─────────────────────────────
-  mcp-victoriametrics:
-    image: ghcr.io/victoriametrics-community/mcp-victoriametrics
+  # ── VictoriaLogs MCP Server ────────────────────────────────
+  mcp-victorialogs:
+    image: ghcr.io/victoriametrics-community/mcp-victorialogs
     environment:
-      - VM_INSTANCE_ENTRYPOINT=${VICTORIA_METRICS_URL:-http://host.docker.internal:8428}
-      - VM_INSTANCE_TYPE=single
+      - VL_INSTANCE_ENTRYPOINT=${VICTORIA_LOGS_URL:-http://host.docker.internal:9428}
       - MCP_SERVER_MODE=stdio
     stdin_open: true
     tty: true
