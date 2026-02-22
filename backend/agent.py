@@ -44,13 +44,14 @@ class AgentState(TypedDict):
     """State for the LangGraph agent."""
     messages: Annotated[Sequence[BaseMessage], add_messages]
     database: str
+    db_type: str
 
 
 # ---------------------------------------------------------------------------
 # System Prompt
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT_TEMPLATE = """You are a PostgreSQL Database expert. You have access to Prometheus metrics and VictoriaLogs log data for the PostgreSQL database named `{database}`.
+SYSTEM_PROMPT_TEMPLATE = """You are a PostgreSQL observability expert. You have access to Prometheus metrics and VictoriaLogs log data for the PostgreSQL database named `{database}` (DB Type: `{db_type}`).
 
 If you are unfamiliar with any Postgres terms or concepts, refer to your deep internal knowledge of the official PostgreSQL documentation (https://www.postgresql.org/docs/current/index.html).
 
@@ -81,7 +82,6 @@ Key PostgreSQL logs you can investigate via VictoriaLogs:
 - Replication-related log entries
 
 When using Prometheus tools, construct PromQL queries filtering by the database instance.
-For the `list_metrics` tool, do NOT use `match[]` as an argument. Instead, use the `filter_pattern` string argument to filter metrics.
 When using VictoriaLogs tools, use LogsQL queries to search and analyze log entries.
 
 Always provide:
@@ -91,9 +91,9 @@ Always provide:
 """
 
 
-def build_system_prompt(database: str) -> str:
-    """Build the system prompt with the database name injected."""
-    return SYSTEM_PROMPT_TEMPLATE.format(database=database)
+def build_system_prompt(database: str, db_type: str) -> str:
+    """Build the system prompt with the database name and db type injected."""
+    return SYSTEM_PROMPT_TEMPLATE.format(database=database, db_type=db_type)
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +291,7 @@ def create_langfuse_handler(database: str, conversation_id: str) -> Optional[Lan
             secret_key=settings.langfuse_secret_key,
             host=settings.langfuse_host,
             session_id=conversation_id,
-            metadata={"database": database},
+            metadata={"database": database, "db_type": kwargs.get("db_type")},
             tags=["postgres-observability", database],
         )
     except Exception as e:
@@ -320,9 +320,11 @@ def build_graph(tools: List[StructuredTool]):
     async def agent_node(state: AgentState) -> dict:
         """Call the LLM with the current messages and available tools."""
         database = state["database"]
+        db_type = state["db_type"]
         langfuse_handler = create_langfuse_handler(
             database=database,
             conversation_id="default",
+            db_type=db_type,
         )
         llm = create_llm(callback_handler=langfuse_handler)
         llm_with_tools = llm.bind_tools(tools)
@@ -331,9 +333,9 @@ def build_graph(tools: List[StructuredTool]):
 
         # Ensure system prompt is the first message
         if not messages or not isinstance(messages[0], SystemMessage):
-            messages.insert(0, SystemMessage(content=build_system_prompt(database)))
+            messages.insert(0, SystemMessage(content=build_system_prompt(database, db_type)))
         else:
-            messages[0] = SystemMessage(content=build_system_prompt(database))
+            messages[0] = SystemMessage(content=build_system_prompt(database, db_type))
 
         response = await llm_with_tools.ainvoke(messages)
         return {"messages": [response]}
@@ -366,6 +368,7 @@ def build_graph(tools: List[StructuredTool]):
 async def run_agent(
     message: str,
     database: str,
+    db_type: str,
     conversation_id: str,
     history: Optional[List[Dict[str, str]]] = None,
 ) -> Dict[str, Any]:
@@ -397,7 +400,7 @@ async def run_agent(
     messages.append(HumanMessage(content=message))
 
     # Create Langfuse handler
-    langfuse_handler = create_langfuse_handler(database, conversation_id)
+    langfuse_handler = create_langfuse_handler(database, conversation_id, db_type=db_type)
     config = {}
     if langfuse_handler:
         config["callbacks"] = [langfuse_handler]
@@ -406,6 +409,7 @@ async def run_agent(
     initial_state: AgentState = {
         "messages": messages,
         "database": database,
+        "db_type": db_type,
     }
 
     result = await compiled_graph.ainvoke(initial_state, config=config)

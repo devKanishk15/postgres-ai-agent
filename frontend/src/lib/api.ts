@@ -46,6 +46,7 @@ export async function fetchDatabaseJob(name: string): Promise<JobDetectionResult
 export async function sendMessage(
     message: string,
     database: string,
+    dbType: string,
     conversationId: string,
     history: HistoryMessage[]
 ): Promise<ChatResponseData> {
@@ -55,6 +56,7 @@ export async function sendMessage(
         body: JSON.stringify({
             message,
             database,
+            db_type: dbType,
             conversation_id: conversationId,
             history,
         }),
