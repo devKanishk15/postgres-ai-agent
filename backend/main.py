@@ -92,6 +92,14 @@ class JobDetectionResponse(BaseModel):
     source: str  # "config" | "prometheus" | "not_found"
 
 
+class JobsResponse(BaseModel):
+    jobs: List[str]
+
+
+class DbTypesResponse(BaseModel):
+    db_types: List[str]
+
+
 class HealthResponse(BaseModel):
     status: str
 
@@ -148,6 +156,63 @@ async def detect_job_from_prometheus(db_name: str) -> Dict[str, Optional[str]]:
     instance = first.get("instance") or None
     logger.info(f"No name match for '{db_name}'; returning first pg_up job='{job}', instance='{instance}'")
     return {"job": job, "instance": instance}
+
+
+async def fetch_prometheus_jobs() -> List[str]:
+    """
+    Query Prometheus pg_up metric and return all unique job label values.
+    """
+    settings = get_settings()
+    prometheus_url = settings.prometheus_url
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{prometheus_url}/api/v1/query",
+                params={"query": "pg_up"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        logger.warning(f"Failed to query Prometheus for pg_up: {e}")
+        return []
+
+    results = data.get("data", {}).get("result", [])
+    jobs = set()
+    for item in results:
+        job = item.get("metric", {}).get("job", "")
+        if job:
+            jobs.add(job)
+    return sorted(jobs)
+
+
+async def fetch_db_types_for_job(job_name: str) -> List[str]:
+    """
+    Query Prometheus pg_up metric filtered by job and return unique db_type
+    label values. Returns empty list if db_type label is not present.
+    """
+    settings = get_settings()
+    prometheus_url = settings.prometheus_url
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{prometheus_url}/api/v1/query",
+                params={"query": f'pg_up{{job="{job_name}"}}'},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        logger.warning(f"Failed to query Prometheus for db_types: {e}")
+        return []
+
+    results = data.get("data", {}).get("result", [])
+    db_types = set()
+    for item in results:
+        db_type = item.get("metric", {}).get("db_type", "")
+        if db_type:
+            db_types.add(db_type)
+    return sorted(db_types)
 
 
 # ---------------------------------------------------------------------------
@@ -217,19 +282,28 @@ async def get_database_job(name: str):
     )
 
 
+@app.get("/jobs", response_model=JobsResponse)
+async def list_jobs():
+    """Return all unique Prometheus job names from the pg_up metric."""
+    jobs = await fetch_prometheus_jobs()
+    return JobsResponse(jobs=jobs)
+
+
+@app.get("/jobs/{job_name}/db_types", response_model=DbTypesResponse)
+async def list_db_types(job_name: str):
+    """Return unique db_type label values for a given Prometheus job."""
+    db_types = await fetch_db_types_for_job(job_name)
+    return DbTypesResponse(db_types=db_types)
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Send a message to the observability agent."""
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    # Validate database exists
-    valid_names = {db.name for db in get_databases()}
-    if request.database not in valid_names:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown database: {request.database}",
-        )
+    if not request.database.strip():
+        raise HTTPException(status_code=400, detail="Database (job name) is required")
 
     conversation_id = request.conversation_id or str(uuid.uuid4())
 

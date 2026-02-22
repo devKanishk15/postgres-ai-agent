@@ -1,18 +1,29 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { fetchDbTypes } from "@/lib/api";
 
 interface Props {
     value: string;
+    database: string;
     onChange: (type: string) => void;
 }
 
-const DB_TYPES = ["master", "slave"];
-
-export default function DbTypeSelector({ value, onChange }: Props) {
+export default function DbTypeSelector({ value, database, onChange }: Props) {
+    const [dbTypes, setDbTypes] = useState<string[]>([]);
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!database) {
+            setDbTypes([]);
+            return;
+        }
+        fetchDbTypes(database)
+            .then(setDbTypes)
+            .catch(() => setDbTypes([]));
+    }, [database]);
 
     useEffect(() => {
         function handleClick(e: MouseEvent) {
@@ -23,7 +34,7 @@ export default function DbTypeSelector({ value, onChange }: Props) {
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
-    const filtered = DB_TYPES.filter(
+    const filtered = dbTypes.filter(
         (t) => t.toLowerCase().includes(search.toLowerCase())
     );
 
