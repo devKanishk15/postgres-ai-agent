@@ -59,6 +59,7 @@ class HistoryMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     database: str
+    db_type: str
     conversation_id: Optional[str] = None
     history: Optional[List[HistoryMessage]] = None
 
@@ -240,6 +241,7 @@ async def chat(request: ChatRequest):
         result = await run_agent(
             message=request.message,
             database=request.database,
+            db_type=request.db_type,
             conversation_id=conversation_id,
             history=history,
         )

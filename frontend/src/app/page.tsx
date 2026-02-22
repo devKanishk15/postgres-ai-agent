@@ -4,12 +4,14 @@ import { useState, useRef, useCallback, type KeyboardEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 import ChatWindow from "@/components/ChatWindow";
 import DatabaseSelector from "@/components/DatabaseSelector";
+import DbTypeSelector from "@/components/DbTypeSelector";
 import type { ChatMessage } from "@/components/ChatWindow";
 import type { HistoryMessage, ToolCallInfo } from "@/lib/api";
 import { sendMessage } from "@/lib/api";
 
 export default function Home() {
   const [database, setDatabase] = useState("");
+  const [dbType, setDbType] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,6 +20,10 @@ export default function Home() {
 
   const handleDatabaseChange = useCallback((name: string) => {
     setDatabase(name);
+  }, []);
+
+  const handleDbTypeChange = useCallback((type: string) => {
+    setDbType(type);
   }, []);
 
   const handleSend = useCallback(async () => {
@@ -30,6 +36,17 @@ export default function Home() {
         role: "assistant",
         content:
           "⚠️ Please select a database from the dropdown in the top-left corner before sending a message.",
+      };
+      setMessages((prev) => [...prev, errMsg]);
+      return;
+    }
+
+    if (!dbType) {
+      const errMsg: ChatMessage = {
+        id: uuidv4(),
+        role: "assistant",
+        content:
+          "⚠️ Please select a DB Type from the dropdown in the top-left corner before sending a message.",
       };
       setMessages((prev) => [...prev, errMsg]);
       return;
@@ -51,7 +68,7 @@ export default function Home() {
     }));
 
     try {
-      const res = await sendMessage(text, database, conversationId, history);
+      const res = await sendMessage(text, database, dbType, conversationId, history);
       const assistantMsg: ChatMessage = {
         id: uuidv4(),
         role: "assistant",
@@ -71,7 +88,7 @@ export default function Home() {
       setLoading(false);
       textareaRef.current?.focus();
     }
-  }, [input, loading, database, messages, conversationId]);
+  }, [input, loading, database, dbType, messages, conversationId]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -102,15 +119,19 @@ export default function Home() {
             value={database}
             onChange={handleDatabaseChange}
           />
+          <DbTypeSelector
+            value={dbType}
+            onChange={handleDbTypeChange}
+          />
         </div>
         <div className="header__center">
           <h1 className="header__title">PostgreSQL Agent</h1>
         </div>
         <div className="header__right">
           <div className="header__status">
-            <span className={`header__dot ${database ? "active" : ""}`} />
+            <span className={`header__dot ${database && dbType ? "active" : ""}`} />
             <span className="header__status-text">
-              {database ? database : "No DB selected"}
+              {database ? (dbType ? `${database} (${dbType})` : `${database} (Select DB Type)`) : "No DB selected"}
             </span>
           </div>
         </div>
@@ -132,9 +153,9 @@ export default function Home() {
             ref={textareaRef}
             className="input-bar__textarea"
             placeholder={
-              database
-                ? `Ask about ${database}…`
-                : "Select a database first…"
+              database && dbType
+                ? `Ask about ${database} (${dbType})…`
+                : "Select a database and DB Type first…"
             }
             value={input}
             onChange={handleTextareaChange}
