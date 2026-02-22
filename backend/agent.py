@@ -50,7 +50,7 @@ class AgentState(TypedDict):
 # System Prompt
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT_TEMPLATE = """You are a PostgreSQL observability expert. You have access to Prometheus metrics and VictoriaLogs log data for the PostgreSQL database named `{database}`.
+SYSTEM_PROMPT_TEMPLATE = """You are a PostgreSQL Database expert. You have access to Prometheus metrics and VictoriaLogs log data for the PostgreSQL database named `{database}`.
 
 If you are unfamiliar with any Postgres terms or concepts, refer to your deep internal knowledge of the official PostgreSQL documentation (https://www.postgresql.org/docs/current/index.html).
 
