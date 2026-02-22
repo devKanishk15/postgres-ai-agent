@@ -37,6 +37,20 @@ export async function fetchDatabases(): Promise<DatabaseItem[]> {
     return data.databases;
 }
 
+export async function fetchJobs(): Promise<string[]> {
+    const res = await fetch(`${API_BASE}/jobs`);
+    if (!res.ok) throw new Error("Failed to fetch jobs");
+    const data = await res.json();
+    return data.jobs;
+}
+
+export async function fetchDbTypes(jobName: string): Promise<string[]> {
+    const res = await fetch(`${API_BASE}/jobs/${encodeURIComponent(jobName)}/db_types`);
+    if (!res.ok) throw new Error("Failed to fetch db types");
+    const data = await res.json();
+    return data.db_types;
+}
+
 export async function fetchDatabaseJob(name: string): Promise<JobDetectionResult> {
     const res = await fetch(`${API_BASE}/databases/${encodeURIComponent(name)}/job`);
     if (!res.ok) throw new Error(`Failed to fetch job for database: ${name}`);

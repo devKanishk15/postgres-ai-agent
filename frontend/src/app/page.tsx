@@ -20,6 +20,7 @@ export default function Home() {
 
   const handleDatabaseChange = useCallback((name: string) => {
     setDatabase(name);
+    setDbType("");
   }, []);
 
   const handleDbTypeChange = useCallback((type: string) => {
@@ -121,6 +122,7 @@ export default function Home() {
           />
           <DbTypeSelector
             value={dbType}
+            database={database}
             onChange={handleDbTypeChange}
           />
         </div>
