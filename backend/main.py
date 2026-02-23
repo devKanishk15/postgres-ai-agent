@@ -23,7 +23,7 @@ from config import get_databases, get_settings
 from agent import run_agent
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -222,6 +222,7 @@ async def fetch_db_types_for_job(job_name: str) -> List[str]:
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
+    logger.debug("Health check requested")
     return HealthResponse(status="ok")
 
 
@@ -285,24 +286,33 @@ async def get_database_job(name: str):
 @app.get("/jobs", response_model=JobsResponse)
 async def list_jobs():
     """Return all unique Prometheus job names from the pg_up metric."""
+    logger.info("📋 Fetching Prometheus jobs...")
     jobs = await fetch_prometheus_jobs()
+    logger.info(f"📋 Found {len(jobs)} jobs: {jobs}")
     return JobsResponse(jobs=jobs)
 
 
 @app.get("/jobs/{job_name}/db_types", response_model=DbTypesResponse)
 async def list_db_types(job_name: str):
     """Return unique db_type label values for a given Prometheus job."""
+    logger.info(f"🔍 Fetching db_types for job='{job_name}'...")
     db_types = await fetch_db_types_for_job(job_name)
+    logger.info(f"🔍 Found db_types for '{job_name}': {db_types}")
     return DbTypesResponse(db_types=db_types)
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Send a message to the observability agent."""
+    logger.info(f"💬 /chat request — database='{request.database}', db_type='{request.db_type}', conv='{request.conversation_id}', history_len={len(request.history) if request.history else 0}")
+    logger.info(f"💬 User message: {request.message[:300]}")
+
     if not request.message.strip():
+        logger.warning("❌ Empty message received")
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     if not request.database.strip():
+        logger.warning("❌ No database specified")
         raise HTTPException(status_code=400, detail="Database (job name) is required")
 
     conversation_id = request.conversation_id or str(uuid.uuid4())
@@ -312,6 +322,7 @@ async def chat(request: ChatRequest):
         history = [{"role": h.role, "content": h.content} for h in request.history]
 
     try:
+        logger.info(f"⏳ Invoking agent for conv='{conversation_id}'...")
         result = await run_agent(
             message=request.message,
             database=request.database,
@@ -319,8 +330,11 @@ async def chat(request: ChatRequest):
             conversation_id=conversation_id,
             history=history,
         )
+        logger.info(f"✅ Agent returned — response_len={len(result.get('response', ''))}, tool_calls={len(result.get('tool_calls', []))}")
+        for i, tc in enumerate(result.get('tool_calls', [])):
+            logger.info(f"   Tool[{i}]: {tc['tool']} — result_len={len(tc.get('result', ''))}")
     except Exception as e:
-        logger.exception("Agent invocation failed")
+        logger.exception("❌ Agent invocation failed")
         raise HTTPException(status_code=500, detail=f"Agent error: {str(e)}")
 
     return ChatResponse(

@@ -19,11 +19,13 @@ export default function Home() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleDatabaseChange = useCallback((name: string) => {
+    console.log(`[UI] Database selected: '${name}'`);
     setDatabase(name);
     setDbType("");
   }, []);
 
   const handleDbTypeChange = useCallback((type: string) => {
+    console.log(`[UI] DB Type selected: '${type}'`);
     setDbType(type);
   }, []);
 
@@ -69,7 +71,9 @@ export default function Home() {
     }));
 
     try {
+      console.log(`[UI] Sending message to agent — database='${database}', dbType='${dbType}'`);
       const res = await sendMessage(text, database, dbType, conversationId, history);
+      console.log(`[UI] Agent response received — ${res.response?.length} chars, ${res.tool_calls?.length} tool calls`);
       const assistantMsg: ChatMessage = {
         id: uuidv4(),
         role: "assistant",
@@ -79,6 +83,7 @@ export default function Home() {
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : "Unknown error";
+      console.error(`[UI] Agent error:`, errorText);
       const errMsg: ChatMessage = {
         id: uuidv4(),
         role: "assistant",

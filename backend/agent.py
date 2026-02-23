@@ -82,7 +82,14 @@ Key PostgreSQL logs you can investigate via VictoriaLogs:
 - Replication-related log entries
 
 When using Prometheus tools, construct PromQL queries filtering by the database instance.
-When using VictoriaLogs tools, use LogsQL queries to search and analyze log entries.
+When using VictoriaLogs tools, use LogsQL queries to search and analyze log entries. 
+**CRITICAL: You MUST ALWAYS include the `db_type` label filter in every VictoriaLogs/LogsQL query.** The selected db_type is `{db_type}`. Every LogsQL query you construct must contain `db_type:"{db_type}"` as a filter to scope results to the correct PostgreSQL instance.
+
+Example LogsQL query patterns:
+- `db_type:"{db_type}" AND _msg:"ERROR"` — find error logs for this db_type
+- `db_type:"{db_type}" AND severity:"LOG"` — find LOG severity entries
+- `db_type:"{db_type}" AND _msg:"connection"` — find connection-related logs
+- `db_type:"{db_type}" AND _msg:"slow query"` — find slow query logs
 
 Always provide:
 1. A clear summary of findings
@@ -205,6 +212,10 @@ class MCPClientManager:
                 # drop any hallucinated / unexpected keys from the LLM.
                 schema_props = input_schema.get("properties", {})
                 filtered_args = {k: v for k, v in kwargs.items() if k in schema_props}
+                dropped_args = {k: v for k, v in kwargs.items() if k not in schema_props}
+                if dropped_args:
+                    logger.warning(f"🔶 [{server_name}] Tool '{mcp_tool.name}' — dropped unexpected args: {list(dropped_args.keys())}")
+                logger.info(f"🔧 [{server_name}] Calling tool '{mcp_tool.name}' with args: {json.dumps(filtered_args, default=str)[:1000]}")
                 result = await session.call_tool(mcp_tool.name, arguments=filtered_args)
                 # Extract text content from the result
                 if result.content:
@@ -214,9 +225,14 @@ class MCPClientManager:
                             parts.append(block.text)
                         else:
                             parts.append(str(block))
-                    return "\n".join(parts)
+                    output = "\n".join(parts)
+                    logger.info(f"✅ [{server_name}] Tool '{mcp_tool.name}' returned {len(output)} chars")
+                    logger.debug(f"📄 [{server_name}] Tool '{mcp_tool.name}' result preview: {output[:500]}")
+                    return output
+                logger.warning(f"⚠️ [{server_name}] Tool '{mcp_tool.name}' returned no content")
                 return "No results returned."
             except Exception as e:
+                logger.error(f"❌ [{server_name}] Tool '{mcp_tool.name}' FAILED: {str(e)}", exc_info=True)
                 return f"Error calling tool {mcp_tool.name}: {str(e)}"
 
         return StructuredTool.from_function(
@@ -279,7 +295,7 @@ def create_llm(callback_handler: Optional[Any] = None):
 # Langfuse Callback
 # ---------------------------------------------------------------------------
 
-def create_langfuse_handler(database: str, conversation_id: str) -> Optional[LangfuseCallbackHandler]:
+def create_langfuse_handler(database: str, conversation_id: str, db_type: str = "") -> Optional[LangfuseCallbackHandler]:
     """Create a Langfuse callback handler for tracing."""
     settings = get_settings()
     if not settings.langfuse_public_key or not settings.langfuse_secret_key:
@@ -291,7 +307,7 @@ def create_langfuse_handler(database: str, conversation_id: str) -> Optional[Lan
             secret_key=settings.langfuse_secret_key,
             host=settings.langfuse_host,
             session_id=conversation_id,
-            metadata={"database": database, "db_type": kwargs.get("db_type")},
+            metadata={"database": database, "db_type": db_type},
             tags=["postgres-observability", database],
         )
     except Exception as e:
@@ -321,6 +337,7 @@ def build_graph(tools: List[StructuredTool]):
         """Call the LLM with the current messages and available tools."""
         database = state["database"]
         db_type = state["db_type"]
+        logger.info(f"🤖 agent_node invoked — database='{database}', db_type='{db_type}', message_count={len(state['messages'])}")
         langfuse_handler = create_langfuse_handler(
             database=database,
             conversation_id="default",
@@ -337,7 +354,15 @@ def build_graph(tools: List[StructuredTool]):
         else:
             messages[0] = SystemMessage(content=build_system_prompt(database, db_type))
 
+        logger.debug(f"📨 Sending {len(messages)} messages to LLM (last user msg: {messages[-1].content[:200] if messages else 'N/A'})")
         response = await llm_with_tools.ainvoke(messages)
+
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            for tc in response.tool_calls:
+                logger.info(f"🔀 LLM requested tool call: {tc['name']} with args: {json.dumps(tc['args'], default=str)[:500]}")
+        else:
+            logger.info(f"💬 LLM returned final response ({len(response.content) if response.content else 0} chars)")
+
         return {"messages": [response]}
 
     tool_node = ToolNode(tools)
@@ -347,7 +372,9 @@ def build_graph(tools: List[StructuredTool]):
         """Determine if the agent should continue or stop."""
         last_message = state["messages"][-1]
         if isinstance(last_message, AIMessage) and last_message.tool_calls:
+            logger.info(f"🔄 Graph routing → tools (pending {len(last_message.tool_calls)} tool call(s))")
             return "tools"
+        logger.info("🏁 Graph routing → END (no more tool calls)")
         return END
 
     # --- Build Graph ---
@@ -381,9 +408,13 @@ async def run_agent(
             "tool_calls": [ { "tool": str, "args": dict, "result": str }, ... ]
         }
     """
+    logger.info(f"▶️  run_agent called — database='{database}', db_type='{db_type}', conv='{conversation_id}', history_len={len(history) if history else 0}")
+    logger.info(f"📝 User message: {message[:300]}")
+
     await ensure_mcp_initialized()
 
     tools = mcp_manager.tools
+    logger.info(f"🛠️  Available tools: {[t.name for t in tools]}")
     compiled_graph = build_graph(tools)
 
     # Build message history
@@ -398,12 +429,16 @@ async def run_agent(
                 messages.append(AIMessage(content=content))
 
     messages.append(HumanMessage(content=message))
+    logger.info(f"📋 Total messages (history + current): {len(messages)}")
 
     # Create Langfuse handler
     langfuse_handler = create_langfuse_handler(database, conversation_id, db_type=db_type)
     config = {}
     if langfuse_handler:
         config["callbacks"] = [langfuse_handler]
+        logger.info("📊 Langfuse tracing enabled")
+    else:
+        logger.info("📊 Langfuse tracing disabled (no handler)")
 
     # Run the graph
     initial_state: AgentState = {
@@ -412,7 +447,9 @@ async def run_agent(
         "db_type": db_type,
     }
 
+    logger.info("⏳ Starting graph execution...")
     result = await compiled_graph.ainvoke(initial_state, config=config)
+    logger.info("✅ Graph execution complete")
 
     # Extract the final response and tool calls
     final_messages = result["messages"]
@@ -425,6 +462,8 @@ async def run_agent(
                 response_text = msg.content
             if msg.tool_calls:
                 for tc in msg.tool_calls:
+                    logger.info(f"📌 Captured tool call: {tc['name']}")
+                    logger.debug(f"   Args: {json.dumps(tc['args'], default=str)[:500]}")
                     tool_calls_info.append({
                         "tool": tc["name"],
                         "args": tc["args"],
@@ -435,6 +474,8 @@ async def run_agent(
             for tc_info in tool_calls_info:
                 if not tc_info["result"]:
                     tc_info["result"] = msg.content[:500] if msg.content else ""
+                    logger.info(f"📌 Tool result for '{tc_info['tool']}': {len(msg.content or '')} chars")
+                    logger.debug(f"   Preview: {(msg.content or '')[:300]}")
                     break
 
     if not response_text:
@@ -444,6 +485,7 @@ async def run_agent(
                 response_text = msg.content
                 break
 
+    logger.info(f"🏁 run_agent finished — response_len={len(response_text)}, tool_calls={len(tool_calls_info)}")
     return {
         "response": response_text or "I was unable to generate a response. Please try again.",
         "tool_calls": tool_calls_info,
