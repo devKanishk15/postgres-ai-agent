@@ -208,15 +208,15 @@ class MCPClientManager:
         async def _invoke_tool(**kwargs) -> str:
             """Call the MCP tool and return the result."""
             try:
-                # Only forward arguments that the tool schema declares;
-                # drop any hallucinated / unexpected keys from the LLM.
-                schema_props = input_schema.get("properties", {})
-                filtered_args = {k: v for k, v in kwargs.items() if k in schema_props}
-                dropped_args = {k: v for k, v in kwargs.items() if k not in schema_props}
-                if dropped_args:
-                    logger.warning(f"🔶 [{server_name}] Tool '{mcp_tool.name}' — dropped unexpected args: {list(dropped_args.keys())}")
-                logger.info(f"🔧 [{server_name}] Calling tool '{mcp_tool.name}' with args: {json.dumps(filtered_args, default=str)[:1000]}")
-                result = await session.call_tool(mcp_tool.name, arguments=filtered_args)
+                logger.info(f"🔧 [{server_name}] Tool '{mcp_tool.name}' raw kwargs keys: {list(kwargs.keys())}")
+                logger.debug(f"🔧 [{server_name}] Tool '{mcp_tool.name}' raw kwargs: {json.dumps(kwargs, default=str)[:2000]}")
+                logger.debug(f"🔧 [{server_name}] Tool '{mcp_tool.name}' schema properties: {list(input_schema.get('properties', {}).keys())}")
+                
+                # Pass all arguments to MCP tool — the MCP server will validate
+                arguments = kwargs if kwargs else {}
+                
+                logger.info(f"🔧 [{server_name}] Calling tool '{mcp_tool.name}' with args: {json.dumps(arguments, default=str)[:1000]}")
+                result = await session.call_tool(mcp_tool.name, arguments=arguments)
                 # Extract text content from the result
                 if result.content:
                     parts = []
