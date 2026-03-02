@@ -42,27 +42,27 @@ export async function fetchDatabases(): Promise<DatabaseItem[]> {
     return data.databases;
 }
 
-export async function fetchJobs(): Promise<string[]> {
-    console.log("[API] fetchJobs — requesting...");
-    const res = await fetch(`${API_BASE}/jobs`);
+export async function fetchDbNames(): Promise<string[]> {
+    console.log("[API] fetchDbNames — requesting...");
+    const res = await fetch(`${API_BASE}/db_names`);
     if (!res.ok) {
-        console.error("[API] fetchJobs FAILED:", res.status, res.statusText);
-        throw new Error("Failed to fetch jobs");
+        console.error("[API] fetchDbNames FAILED:", res.status, res.statusText);
+        throw new Error("Failed to fetch db names");
     }
     const data = await res.json();
-    console.log("[API] fetchJobs — received:", data.jobs);
-    return data.jobs;
+    console.log("[API] fetchDbNames — received:", data.db_names);
+    return data.db_names;
 }
 
-export async function fetchDbTypes(jobName: string): Promise<string[]> {
-    console.log(`[API] fetchDbTypes — requesting for job='${jobName}'...`);
-    const res = await fetch(`${API_BASE}/jobs/${encodeURIComponent(jobName)}/db_types`);
+export async function fetchDbTypes(dbName: string): Promise<string[]> {
+    console.log(`[API] fetchDbTypes — requesting for db_name='${dbName}'...`);
+    const res = await fetch(`${API_BASE}/db_names/${encodeURIComponent(dbName)}/db_types`);
     if (!res.ok) {
         console.error("[API] fetchDbTypes FAILED:", res.status, res.statusText);
         throw new Error("Failed to fetch db types");
     }
     const data = await res.json();
-    console.log(`[API] fetchDbTypes — received for '${jobName}':`, data.db_types);
+    console.log(`[API] fetchDbTypes — received for '${dbName}':`, data.db_types);
     return data.db_types;
 }
 

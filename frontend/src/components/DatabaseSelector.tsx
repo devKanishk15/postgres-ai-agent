@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { fetchJobs } from "@/lib/api";
+import { fetchDbNames } from "@/lib/api";
 
 interface Props {
     value: string;
@@ -9,14 +9,14 @@ interface Props {
 }
 
 export default function DatabaseSelector({ value, onChange }: Props) {
-    const [jobs, setJobs] = useState<string[]>([]);
+    const [dbNames, setDbNames] = useState<string[]>([]);
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetchJobs()
-            .then(setJobs)
+        fetchDbNames()
+            .then(setDbNames)
             .catch(() => { });
     }, []);
 
@@ -29,12 +29,12 @@ export default function DatabaseSelector({ value, onChange }: Props) {
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
-    const filtered = jobs.filter(
-        (j) => j.toLowerCase().includes(search.toLowerCase())
+    const filtered = dbNames.filter(
+        (d) => d.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleSelect = (jobName: string) => {
-        onChange(jobName);
+    const handleSelect = (dbName: string) => {
+        onChange(dbName);
         setOpen(false);
         setSearch("");
     };
@@ -103,18 +103,18 @@ export default function DatabaseSelector({ value, onChange }: Props) {
                         {filtered.length === 0 && (
                             <li className="db-selector__empty">No databases found</li>
                         )}
-                        {filtered.map((j) => (
+                        {filtered.map((d) => (
                             <li
-                                key={j}
-                                className={`db-selector__item ${j === value ? "active" : ""
+                                key={d}
+                                className={`db-selector__item ${d === value ? "active" : ""
                                     }`}
-                                onClick={() => handleSelect(j)}
+                                onClick={() => handleSelect(d)}
                             >
                                 <span className="db-selector__item-dot" />
                                 <div className="db-selector__item-info">
-                                    <span className="db-selector__item-label">{j}</span>
+                                    <span className="db-selector__item-label">{d}</span>
                                 </div>
-                                {j === value && (
+                                {d === value && (
                                     <svg
                                         className="db-selector__check"
                                         width="16"
